@@ -1,1 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Factory Floor – Interactive Allocation Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+:root{
+  --bg:#ffffff;--panel:#fff;--line:#d5dbe5;--ink:#14213d;--muted:#5b6577;--accent:#2B4C9B;
+  color-scheme:light;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',Arial,sans-serif}
+.wrap{max-width:1480px;margin:0 auto;padding:28px 24px 40px}
+h1{margin:0;font-size:clamp(26px,4vw,40px);line-height:1.1}
+.sub{margin-top:8px;color:var(--muted);font-size:15px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:32px;margin-top:24px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:1fr}}
+.zone{margin-bottom:22px}
+.zlabel{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.scroll{overflow-x:auto;padding-bottom:4px}
+.grid{display:grid;gap:6px;touch-action:none;user-select:none;-webkit-user-select:none;width:max-content}
+.cell{width:70px;height:58px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;cursor:pointer;border:1.5px solid rgba(0,0,0,.28);padding:0;font-family:inherit}
+.cell{position:relative}
+.wk{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.45);cursor:pointer}
+.wk::after{content:'';position:absolute;inset:-7px}
+.wk.on{background:#22c55e;animation:blink 1s ease-in-out infinite}
+.wk.off{background:#d1d5db;border-color:#6b7280;box-shadow:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+@media (prefers-reduced-motion:reduce){.wk.on{animation:none}}
+.cell:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.cell:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.cell .n{font-size:22px;font-weight:700}
+.cell .c{font-size:10.5px;font-weight:600;letter-spacing:.06em;height:12px}
+.cell.un{border:1.5px dashed #9aa3b2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:18px}
+.phead{display:flex;justify-content:space-between;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.cat{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;border:2px solid transparent;cursor:pointer;width:100%;background:none;color:inherit;font-family:inherit;text-align:left}
+.cat:hover{background:rgba(127,127,127,.1)}
+.cat[aria-pressed="true"]{border-color:var(--accent);background:rgba(127,127,127,.1)}
+.cat:focus-visible{outline:3px solid var(--accent)}
+.sw{width:30px;height:30px;flex:none;border-radius:6px;border:1.5px solid rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.cname{flex:1;font-size:15px;font-weight:600}
+.cnt{font-size:15px;font-weight:700;width:30px;text-align:right}
+.pct{font-size:13px;color:var(--muted);width:40px;text-align:right}
+.pick{width:30px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;flex:none}
+.total{border-top:1px solid var(--line);margin-top:8px;padding-top:10px;display:flex;justify-content:space-between;font-weight:700}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;margin-bottom:12px;border:1px solid var(--line)}
+.bar div{transition:width .2s}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button.act{font-family:inherit;font-size:14px;font-weight:600;padding:10px 14px;min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.act:hover{border-color:var(--accent)}
+.hint{font-size:14px;line-height:1.5;color:var(--muted)}
+.hint b{color:var(--ink)}
+.bt{font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px}
+.ms{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 10px 48px}.chip{min-width:26px;height:20px;padding:0 4px;border-radius:4px;border:1px solid rgba(0,0,0,.28);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}.chip.none{border:0;color:var(--muted);font-weight:400}.chip.stopped{opacity:.4;text-decoration:line-through}
+.wk.kd{position:relative;top:auto;right:auto;display:inline-block;flex:none}
+.wkey{display:flex;align-items:center;gap:10px;font-size:15px;margin:8px 0}.wkey b{margin-left:auto}
+.wrow{display:flex;align-items:center;gap:10px;margin:6px 0}.wc{font-size:13px;color:var(--muted)}
+.sel{font-size:13px;color:var(--muted);margin-top:6px}
+.conn{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:14px;font-weight:600;color:var(--muted);flex-wrap:wrap}.conn button.act{min-height:36px;padding:6px 12px}body.ro .cell{cursor:default}body.ro .wk{cursor:default}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Factory Floor – Allocation Map</h1>
+  <div class="sub" id="sub"></div>
+  <div class="conn" id="conn"><span id="connt">Connecting…</span><button class="act" id="unlock" type="button">Unlock editing</button></div>
+  <div class="layout">
+    <div id="zones"></div>
+    <aside>
+      <div class="panel">
+        <div class="phead"><span>Paint with</span><span>Machines · Share</span></div>
+        <div id="cats" role="group" aria-label="Category brush"></div>
+        <div class="total"><span>Total</span><span id="total"></span></div>
+      </div>
+      <div class="panel">
+        <div class="phead"><span>Distribution</span></div>
+        <div class="bar" id="bar" aria-hidden="true"></div>
+        <div class="hint"><b>How to use:</b> pick a category above, then click or drag across machines to assign them. Counts, shares and the bar update instantly. Use the square next to a category to change its colour. <b>Working status:</b> the dot on each assigned machine blinks green while it is running. Click it to mark the machine as not working (grey, no blink) or working again, or focus a machine and press W.</div><div class="bt">Working status · machines with a beam</div>
+        <div class="wkey"><span class="wk on kd"></span><span>Working (blinking)</span><b id="wn"></b></div>
+        <div class="wkey"><span class="wk off kd"></span><span>Not working</span><b id="sn"></b></div>
+        <div id="wcat"></div>
+      </div>
+      <div class="panel">
+        <div class="phead"><span>Zone fill</span></div>
+        <div class="hint">Assign a whole zone with the selected category.</div>
+        <div class="btns" id="zbtns" style="margin-top:10px"></div>
+        <div class="bt">Everything</div>
+        <div class="btns">
+          <button class="act" id="undo">Undo (Ctrl+Z)</button>
+          <button class="act" id="reset">Reset to original</button>
+          <button class="act" id="copy">Copy summary</button>
+        </div>
+        <div class="sel" id="msg" role="status"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ============ SETTINGS: paste your two Supabase values between the quotes ============ */
+var SUPABASE_URL = "https://lkrgqzqizrajnbwlsxfp.supabase.co";
+var SUPABASE_KEY = "sb_publishable_tDx5R8ighGUjfH2ZAsetXw_E302BbQC";
+/* ======================================================================================= */
+</script>
+<script>
+(function(){
+  var CLOUD = !/YOUR_/.test(SUPABASE_URL) && !/YOUR_/.test(SUPABASE_KEY) && !!window.supabase;
+  var DEF_CATS=[
+    {id:'NB',name:'N Blue dog',code:'NB',color:'#2B4C9B'},
+    {id:'BK',name:'Black dog',code:'BK',color:'#161616'},
+    {id:'TF',name:'Taffeta',code:'TF',color:'#E8901C'},
+    {id:'MA',name:'Mono Banglori A',code:'MA',color:'#0F6B3F'},
+    {id:'MB',name:'Mono Banglori B',code:'MB',color:'#8FDCEB'},
+    {id:'DM',name:'Damage',code:'!',color:'#C62828'},
+    {id:'UN',name:'Unassigned',code:'',color:'#EEF0F3'}
+  ];
+  var INIT={NB:[1,2,3,5,6,9,11,12,13,14,15,25,26,27,28,29,30,32,38,41,42,43,47,48],BK:[31,33,37,44],TF:[4,7],MA:[45,46],MB:[21,22],DM:[34]};
+  var ZONES=[
+    {id:'A',label:'Zone A · machines 1–24',top:seq(1,23,2),bot:seq(2,24,2)},
+    {id:'B',label:'Zone B · machines 25–48 (numbering runs right to left)',top:seq(47,25,-2),bot:seq(48,26,-2)},
+    {id:'C',label:'Zone C · machines 49–68',top:seq(49,67,2),bot:seq(50,68,2)},
+    {id:'D',label:'Zone D · machines 69–72 (numbering runs right to left)',top:[72,71,70,69],bot:null,offset:6}
+  ];
+  function seq(a,b,s){var r=[];for(var i=a;s>0?i<=b:i>=b;i+=s)r.push(i);return r}
+  var KEY='factory-floor-v1';
+  var cats=JSON.parse(JSON.stringify(DEF_CATS));
+  var assign={},work={};
+  function initAssign(){assign={};work={};for(var m=1;m<=72;m++){assign[m]='UN';work[m]=true}for(var k in INIT)INIT[k].forEach(function(m){assign[m]=k})}
+  initAssign();
+  if(!CLOUD)try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&s.assign&&s.colors){assign=s.assign;if(s.work)work=s.work;cats.forEach(function(c){if(s.colors[c.id])c.color=s.colors[c.id]})}}catch(e){}
+  var brush='NB';
+  function save(){cloudPush();try{var colors={};cats.forEach(function(c){colors[c.id]=c.color});localStorage.setItem(KEY,JSON.stringify({assign:assign,colors:colors,work:work}))}catch(e){}}
+  function cat(id){return cats.filter(function(c){return c.id===id})[0]}
+  function ink(hex){var h=hex.replace('#','');var r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);return (0.299*r+0.587*g+0.114*b)>150?'#14213d':'#ffffff'}
+  function el(t,a,h){var e=document.createElement(t);for(var k in a||{})e.setAttribute(k,a[k]);if(h!=null)e.innerHTML=h;return e}
 
+  var zonesEl=document.getElementById('zones');
+  var cellEls={};
+  function buildGrid(){
+    ZONES.forEach(function(z){
+      var wrap=el('div',{class:'zone'});
+      wrap.appendChild(el('div',{class:'zlabel'},z.label));
+      var sc=el('div',{class:'scroll'});
+      var g=el('div',{class:'grid'});
+      g.style.gridTemplateColumns='repeat('+z.top.length+',70px)';if(z.offset)g.style.marginLeft=(z.offset*76)+'px';
+      var order=z.bot?z.top.concat(z.bot):z.top;
+      var rows=z.bot?[z.top,z.bot]:[z.top];
+      rows.forEach(function(r){r.forEach(function(m){
+        var b=el('button',{class:'cell',type:'button','data-m':m});
+        b.innerHTML='<span class="n">'+m+'</span><span class="c"></span><span class="wk on"></span>';
+        cellEls[m]=b;g.appendChild(b);
+      })});
+      sc.appendChild(g);wrap.appendChild(sc);zonesEl.appendChild(wrap);
+      // drag painting
+      var painting=false;
+      g.addEventListener('pointerdown',function(e){var b=e.target.closest('.cell');if(!b)return;if(e.target.closest('.wk')){toggleWork(+b.dataset.m);e.preventDefault();return}painting=true;stroke=false;paint(+b.dataset.m);e.preventDefault()});
+      g.addEventListener('pointermove',function(e){if(!painting)return;var t=document.elementFromPoint(e.clientX,e.clientY);var b=t&&t.closest&&t.closest('.cell');if(b)paint(+b.dataset.m)});
+      window.addEventListener('pointerup',function(){painting=false;stroke=false});window.addEventListener('pointercancel',function(){painting=false;stroke=false});
+      g.addEventListener('keydown',function(e){if((e.key==='w'||e.key==='W')&&e.target.closest('.cell')){e.preventDefault();toggleWork(+e.target.closest('.cell').dataset.m);return}if((e.key==='Enter'||e.key===' ')&&e.target.closest('.cell')){e.preventDefault();stroke=false;paint(+e.target.closest('.cell').dataset.m)}});
+    });
+  }
+  var stroke=false,hist=[];function isW(m){return work[m]!==false}
+  function toggleWork(m){if(!guard())return;var id=assign[m];if(id==='UN'||id==='DM'){setMsg('Machine '+m+' has no beam or cloth assigned.');return}snap();work[m]=!isW(m);renderCell(m);renderStats();save();setMsg('Machine '+m+(work[m]?' marked working.':' marked not working.'))}
+  function cmap(){var o={};cats.forEach(function(c){o[c.id]=c.color});return o}
+  function snap(c){hist.push({a:JSON.stringify(assign),w:JSON.stringify(work),c:c||null});if(hist.length>200)hist.shift()}
+  function undo(){if(!guard())return;var h=hist.pop();if(!h){setMsg('Nothing to undo.');return}assign=JSON.parse(h.a);work=JSON.parse(h.w);if(h.c)cats.forEach(function(c){if(h.c[c.id])c.color=h.c[c.id]});buildCats();renderAll();save();setMsg('Undone.')}
+  function paint(m){if(!guard())return;if(assign[m]===brush)return;if(!stroke){snap();stroke=true}assign[m]=brush;renderCell(m);renderStats();save()}
+  function renderCell(m){
+    var c=cat(assign[m]),b=cellEls[m];
+    b.style.background=c.color;b.style.color=ink(c.color);
+    b.className='cell'+(c.id==='UN'?' un':'');
+    b.querySelector('.c').textContent=c.code;
+    var w=b.querySelector('.wk'),act=c.id!=='UN'&&c.id!=='DM',on=isW(m);
+    w.style.display=act?'block':'none';w.className='wk '+(on?'on':'off');
+    w.title=on?'Working – click to mark not working':'Not working – click to mark working';
+    b.setAttribute('aria-label','Machine '+m+', '+c.name+(act?(on?', working':', not working'):''));
+  }
+  var catsEl=document.getElementById('cats');
+  function buildCats(){
+    catsEl.innerHTML='';
+    cats.forEach(function(c){
+      var outer=el('div');var row=el('div',{style:'display:flex;align-items:center;gap:6px'});
+      var b=el('button',{class:'cat',type:'button','data-id':c.id,'aria-pressed':String(c.id===brush)});
+      b.innerHTML='<span class="sw" style="background:'+c.color+';color:'+ink(c.color)+'">'+c.code+'</span><span class="cname">'+c.name+'</span><span class="cnt"></span><span class="pct"></span>';
+      b.addEventListener('click',function(){brush=c.id;buildCats();renderStats();setMsg('Painting with '+c.name+'.')});
+      var p=el('input',{type:'color',class:'pick',value:c.color,'aria-label':'Change colour of '+c.name,title:'Change colour'});
+      p.addEventListener('input',function(){if(!guard()){p.value=c.color;return}c.color=p.value;renderAll();save()});
+      row.appendChild(b);row.appendChild(p);outer.appendChild(row);outer.appendChild(el('div',{class:'ms','data-id':c.id}));catsEl.appendChild(outer);
+    });
+  }
+  function counts(){var n={};cats.forEach(function(c){n[c.id]=0});for(var m=1;m<=72;m++)n[assign[m]]++;return n}
+  function renderStats(){
+    var n=counts();
+    var rows=catsEl.querySelectorAll('.cat');
+    cats.forEach(function(c,i){
+      var r=rows[i];
+      r.querySelector('.cnt').textContent=n[c.id];
+      r.querySelector('.pct').textContent=Math.round(n[c.id]*100/72)+'%';
+      r.querySelector('.sw').style.background=c.color;r.querySelector('.sw').style.color=ink(c.color);
+      r.setAttribute('aria-pressed',String(c.id===brush));
+      var box=catsEl.querySelector('.ms[data-id="'+c.id+'"]'),h='';
+      for(var m=1;m<=72;m++)if(assign[m]===c.id)h+='<span class="chip'+(c.id!=='UN'&&c.id!=='DM'&&!isW(m)?' stopped':'')+'" style="background:'+c.color+';color:'+ink(c.color)+'">'+m+'</span>';
+      box.innerHTML=h||'<span class="chip none">no machines</span>';
+    });
+    document.getElementById('total').textContent='72 · 100%';
+    var bar=document.getElementById('bar');bar.innerHTML='';
+    cats.forEach(function(c){if(n[c.id]){var d=el('div');d.style.width=(n[c.id]*100/72)+'%';d.style.background=c.color;bar.appendChild(d)}});
+    var un=n.UN,asg=72-un-n.DM,run=0,wh='';for(var q=1;q<=72;q++)if(assign[q]!=='UN'&&assign[q]!=='DM'&&isW(q))run++;
+    document.getElementById('wn').textContent=run;document.getElementById('sn').textContent=asg-run;
+    cats.forEach(function(c){if(c.id==='UN'||c.id==='DM'||!n[c.id])return;var r=0;for(var q=1;q<=72;q++)if(assign[q]===c.id&&isW(q))r++;wh+='<div class="wrow"><span class="sw" style="background:'+c.color+';color:'+ink(c.color)+'">'+c.code+'</span><span class="cname">'+c.name+'</span><span class="wc">'+r+' working · '+(n[c.id]-r)+' not</span></div>'});
+    document.getElementById('wcat').innerHTML=wh||'<div class="hint">No machines assigned yet.</div>';
+    document.getElementById('sub').textContent='72 machines · '+asg+' assigned ('+run+' working, '+(asg-run)+' not working) · '+n.DM+' damaged · '+un+' unassigned ('+Math.round(un*100/72)+'%)';
+  }
+  function renderAll(){for(var m=1;m<=72;m++)renderCell(m);renderStats()}
+  function setMsg(t){document.getElementById('msg').textContent=t}
+  // zone fill buttons
+  var zb=document.getElementById('zbtns');
+  ZONES.forEach(function(z){
+    var b=el('button',{class:'act',type:'button'},'Fill zone '+z.id);
+    b.addEventListener('click',function(){
+      if(!guard())return;var ms=z.top.concat(z.bot||[]);
+      snap();ms.forEach(function(m){assign[m]=brush;renderCell(m)});
+      renderStats();save();setMsg('Zone '+z.id+' set to '+cat(brush).name+'.');
+    });
+    zb.appendChild(b);
+  });
+  document.getElementById('reset').addEventListener('click',function(){
+    if(!guard())return;snap(cmap());initAssign();cats=JSON.parse(JSON.stringify(DEF_CATS));brush='NB';
+    buildCats();renderAll();save();setMsg('Reset to the original layout.');
+  });
+  document.getElementById('copy').addEventListener('click',function(){
+    var n=counts();
+    var t='Factory floor allocation\n'+cats.map(function(c){var ms=[];for(var m=1;m<=72;m++)if(assign[m]===c.id)ms.push(m+((c.id!=='UN'&&c.id!=='DM'&&!isW(m))?' (not working)':''));return c.name+' ('+n[c.id]+'): '+(ms.join(', ')||'–')}).join('\n');
+    try{navigator.clipboard.writeText(t).then(function(){setMsg('Summary copied.')},function(){setMsg('Copy not available here.')})}catch(e){setMsg('Copy not available here.')}
+  });
+  document.getElementById('undo').addEventListener('click',undo);
+  document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}});
+  buildGrid();buildCats();renderAll();
+
+  /* ---------- live sync (Supabase) ---------- */
+  var sb=null,canEdit=!CLOUD,loaded=!CLOUD,pin=null,lastAt=null,pending=false,timer=null,remoteEmpty=false;
+  var CLIENT=Math.random().toString(36).slice(2)+Date.now().toString(36);
+  var PINKEY='ff-pin';
+  function guard(){
+    if(!CLOUD)return true;
+    if(!loaded){setMsg('Still connecting, please wait a moment.');return false}
+    if(!canEdit){setMsg('View only. Tap "Unlock editing" and enter the PIN.');return false}
+    return true;
+  }
+  function setConn(t){var e=document.getElementById('connt');if(e)e.textContent=t}
+  function updateUI(){
+    var b=document.getElementById('unlock');
+    document.body.className=(CLOUD&&!canEdit)?'ro':'';
+    if(!CLOUD){b.style.display='none';setConn('Local mode: not connected to the cloud (changes stay on this device)');return}
+    b.textContent=canEdit?'Lock editing':'Unlock editing';
+    if(loaded)setConn((canEdit?'● Live · editing enabled':'● Live · view only'));
+  }
+  function colorsObj(){var o={};cats.forEach(function(c){o[c.id]=c.color});return o}
+  function applyRemote(r){
+    if(!r)return;
+    lastAt=r.updated_at;
+    if(!r.assign||!Object.keys(r.assign).length){remoteEmpty=true;return}
+    remoteEmpty=false;
+    assign=r.assign;work=r.work||{};
+    cats.forEach(function(c){if(r.colors&&r.colors[c.id])c.color=r.colors[c.id]});
+    hist=[];buildCats();renderAll();
+  }
+  function cloudPush(){
+    if(!CLOUD||!canEdit)return;
+    pending=true;clearTimeout(timer);
+    timer=setTimeout(function(){
+      setConn('Saving…');
+      sb.rpc('save_state',{p_pin:pin,p_assign:assign,p_work:work,p_colors:colorsObj(),p_client:CLIENT}).then(function(r){
+        if(r.error){
+          if(/Wrong PIN/i.test(r.error.message||'')){pending=false;canEdit=false;pin=null;try{localStorage.removeItem(PINKEY)}catch(e){}updateUI();setMsg('The PIN is no longer valid. Unlock again.');return}
+          setConn('Save failed, retrying…');timer=setTimeout(cloudPush,3000);return;
+        }
+        pending=false;setConn('● Live · saved');setTimeout(updateUI,1500);
+      },function(){setConn('Offline, retrying…');timer=setTimeout(cloudPush,3000)});
+    },350);
+  }
+  function fetchRow(first){
+    return sb.from('floor_state').select('*').eq('id',1).single().then(function(r){
+      if(r.error){setConn('Cannot reach the database');return}
+      var row=r.data;
+      if(first||(!pending&&row.updated_at!==lastAt&&row.updated_by!==CLIENT))applyRemote(row);
+      else if(row.updated_by===CLIENT)lastAt=row.updated_at;
+      if(first){loaded=true;updateUI();tryAutoUnlock()}
+    },function(){setConn('Cannot reach the database')});
+  }
+  function unlockWith(v,quiet){
+    return sb.rpc('check_pin',{p_pin:v}).then(function(r){
+      if(r.data===true){
+        canEdit=true;pin=v;try{localStorage.setItem(PINKEY,v)}catch(e){}
+        updateUI();setMsg('Editing unlocked.');
+        if(remoteEmpty)cloudPush();
+      }else if(!quiet){setMsg('Wrong PIN.');alert('Wrong PIN')}
+      else{try{localStorage.removeItem(PINKEY)}catch(e){}}
+    });
+  }
+  function tryAutoUnlock(){var v=null;try{v=localStorage.getItem(PINKEY)}catch(e){}if(v)unlockWith(v,true)}
+  function startCloud(){
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    document.getElementById('unlock').addEventListener('click',function(){
+      if(canEdit){canEdit=false;pin=null;try{localStorage.removeItem(PINKEY)}catch(e){}updateUI();setMsg('Editing locked.');return}
+      var v=window.prompt('Enter the editing PIN:');
+      if(v)unlockWith(v.trim(),false);
+    });
+    fetchRow(true).then(function(){
+      sb.channel('floor-live').on('postgres_changes',{event:'*',schema:'public',table:'floor_state'},function(p){
+        var r=p.new;if(r&&r.updated_by!==CLIENT&&!pending)applyRemote(r);
+      }).subscribe();
+      setInterval(function(){fetchRow(false)},20000);
+    });
+  }
+  updateUI();
+  if(CLOUD)startCloud();
+})();
+</script>
+</body>
+</html>
